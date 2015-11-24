@@ -37,6 +37,7 @@
 #include <clocale>
 #include <cstdlib>
 
+#define MAXBUF 2000
 #define	QLEN 32
 #define SIZE sizeof(struct sockaddr_in)
 
@@ -49,7 +50,7 @@ void sig_handler(int signo);
 // automatically executes when thread is created
 // detailed documentation in the function
 // this is where the bulk work for the client is done
-int slave_work(int ssock);
+int	slave_work(int ssock);
 
 // list just the files in a directory
 // returns a formatted string of the list	
@@ -63,10 +64,10 @@ int main(int argc, char *argv[])
 	int port;
 	// check command line args
 	if(argc > 2)
-    	{ 
-    		printf("\nUsage: %s <[port]>\n", argv[0]);
-       		return -1;
-    	} // end if
+    { 
+       printf("\nUsage: %s <[port]>\n", argv[0]);
+       return -1;
+    } // end if
 	else if (argv[1])
 	{
 		stringstream argin(argv[1]);
@@ -81,7 +82,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in server = {AF_INET, htons(port), INADDR_ANY};
 	static struct sigaction act;
   
-    	// register sig handler and mask pipe error sig
+    // register sig handler and mask pipe error sig
 	act.sa_handler = sig_handler;
 	sigfillset(&(act.sa_mask));
 	sigaction(SIGPIPE, &act, NULL);
@@ -92,24 +93,24 @@ int main(int argc, char *argv[])
 	
 	// set up the transport end point
 	if ((msock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    	{
-      		perror("Socket call failed");
-      		exit(-1);
-    	}
+    {
+      perror("Socket call failed");
+      exit(-1);
+    }
 
 	// bind and address to the end point
 	if (bind(msock, (struct sockaddr *)&server, SIZE) < 0)
-    	{
-      		perror("Bind call failed");
-      		exit(-1);
-    	}
+    {
+      perror("Bind call failed");
+      exit(-1);
+    }
 
 	// start listening for incoming connections
 	if (listen(msock, qlen) < 0)
-    	{
-      		perror("Listen call failed");
-      		exit(-1);
-    	}   
+    {
+      perror("Listen call failed");
+      exit(-1);
+    }   
 	cout << "Server started...listening for incoming connections" << endl;
 	
 	// handle concurrency
@@ -122,7 +123,8 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
-		if (pthread_create(&th, NULL, (void * (*)(void *))slave_work, (void *)(long)ssock) < 0) 
+		if (pthread_create(&th, NULL, (void * (*)(void *))slave_work,
+		    (void *)(long)ssock) < 0) 
 			perror("Thread create call failed");
 	}
 	
@@ -149,23 +151,29 @@ void sig_handler(int signo)
 // returns a formatted string of the list
 string listdir(DIR* dir)
 {
-	struct dirent *entry;
+	int error = 0;
+	struct dirent entry;
+    struct dirent *result;
+ 
 	string f = "\n###start listing###";
 	
-    	if (!(entry = readdir(dir) ) )
-        	return "@error@";
-
+    if ((error = readdir_r(dir, &entry, &result) ) < 0 )
+        return strerror(errno);
+ 
 	// iterate through entries
-    	do{
-        	if (entry->d_type != DT_DIR)
+    do{
+		if (result == NULL)
+            break;
+        else if (result->d_type != DT_DIR)
 		{
-            		f += "\n";
-		    	f += entry->d_name;
+            f += "\n";
+		    f += result->d_name;
 		}
-    	} while (entry = readdir(dir));
+    } while ((error = readdir_r(dir, &entry, &result) ) != -1);
     
 	return (f += "\n###end listing###");
 }
+
 
 // automatically executes when thread is created
 // this is where the bulk work of the client gets done
@@ -186,26 +194,27 @@ int slave_work(int ssock)
 	if (start == 0)
 	{
 		char hello[] = "Server says 'HELLO'";
-		write(ssock, hello, strlen(hello));
+		send(ssock, hello, strlen(hello), 0);
 		start = 1;
 	}
 	
 	// main processing loop
 	while (1)
 	{
-		char buf[2000];
+		char buf[MAXBUF];
 		int b = 0;
-		bzero(buf, 2000);
+		bzero(buf, MAXBUF);
 		string temp = "";
 		
 		// dlmode starts false
 		// switch to dlmode when client confirms it is ready for download
 		while(dlmode)
 		{	
-			b = read(ssock, buf, 2000);
+	        // make sure client is still ready, connected and in sync
+			b = recv(ssock, buf, MAXBUF, 0);
 			if(b < 0)
 			{
-				perror("Read call failed: ");
+				perror("recv call failed: ");
 				exit(-1);
 			}
 			else if(b == 0)
@@ -238,10 +247,10 @@ int slave_work(int ssock)
 				temp = "!@#$%^&*()_+";
 			
 			// send file line by line
-			b = write(ssock, temp.c_str(), strlen(temp.c_str()));
+			b = send(ssock, temp.c_str(), strlen(temp.c_str()), 0);
 			if(b < 0)
 			{
-				perror("Write call failed: ");
+				perror("send call failed: ");
 				exit(-1);
 			}
 			else if(b == 0)
@@ -252,10 +261,10 @@ int slave_work(int ssock)
 		}
 		
 		// main handler for incomming data
-		b = read(ssock, buf, 2000);
+		b = recv(ssock, buf, MAXBUF, 0);
 		if(b < 0)
 		{
-			perror("Read call failed: ");
+			perror("recv call failed: ");
 			break;
 		}
 		else if(b == 0)
@@ -355,11 +364,11 @@ int slave_work(int ssock)
 
 		// sends back the processed data requested from 
 		//          client message handler above
-		b = write(ssock, temp.c_str(), strlen(temp.c_str()));
+		b = send(ssock, temp.c_str(), strlen(temp.c_str()), 0);
 		temp = "";
 		if(b < 0)
 		{
-			perror("Write call failed: ");
+			perror("send call failed: ");
 			break;
 		}
 		else if(b == 0)
@@ -374,7 +383,7 @@ int slave_work(int ssock)
 	closedir(dir);
 	close(ssock); 
 	
-	// notify termination of client and thread and exit
+	// notify termination of client/thread and exit
 	cout << "thread terminating...ID: " << pthread_self() << endl;
 	pthread_detach(pthread_self());
 	pthread_exit(NULL);
