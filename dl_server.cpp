@@ -63,10 +63,10 @@ int main(int argc, char *argv[])
 	int port;
 	// check command line args
 	if(argc > 2)
-    { 
-       printf("\nUsage: %s <[port]>\n", argv[0]);
-       return -1;
-    } // end if
+    	{ 
+    		printf("\nUsage: %s <[port]>\n", argv[0]);
+       		return -1;
+    	} // end if
 	else if (argv[1])
 	{
 		stringstream argin(argv[1]);
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in server = {AF_INET, htons(port), INADDR_ANY};
 	static struct sigaction act;
   
-    // register sig handler and mask pipe error sig
+    	// register sig handler and mask pipe error sig
 	act.sa_handler = sig_handler;
 	sigfillset(&(act.sa_mask));
 	sigaction(SIGPIPE, &act, NULL);
@@ -92,24 +92,24 @@ int main(int argc, char *argv[])
 	
 	// set up the transport end point
 	if ((msock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-      perror("Socket call failed");
-      exit(-1);
-    }
+    	{
+      		perror("Socket call failed");
+      		exit(-1);
+    	}
 
 	// bind and address to the end point
 	if (bind(msock, (struct sockaddr *)&server, SIZE) < 0)
-    {
-      perror("Bind call failed");
-      exit(-1);
-    }
+    	{
+      		perror("Bind call failed");
+      		exit(-1);
+    	}
 
 	// start listening for incoming connections
 	if (listen(msock, qlen) < 0)
-    {
-      perror("Listen call failed");
-      exit(-1);
-    }   
+    	{
+      		perror("Listen call failed");
+      		exit(-1);
+    	}   
 	cout << "Server started...listening for incoming connections" << endl;
 	
 	// handle concurrency
@@ -122,8 +122,7 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
-		if (pthread_create(&th, NULL, (void * (*)(void *))slave_work,
-		    (void *)(long)ssock) < 0) 
+		if (pthread_create(&th, NULL, (void * (*)(void *))slave_work, (void *)(long)ssock) < 0) 
 			perror("Thread create call failed");
 	}
 	
@@ -153,17 +152,17 @@ string listdir(DIR* dir)
 	struct dirent *entry;
 	string f = "\n###start listing###";
 	
-    if (!(entry = readdir(dir) ) )
-        return "@error@";
+    	if (!(entry = readdir(dir) ) )
+        	return "@error@";
 
 	// iterate through entries
-    do{
-        if (entry->d_type != DT_DIR)
+    	do{
+        	if (entry->d_type != DT_DIR)
 		{
-            f += "\n";
-		    f += entry->d_name;
+            		f += "\n";
+		    	f += entry->d_name;
 		}
-    } while (entry = readdir(dir));
+    	} while (entry = readdir(dir));
     
 	return (f += "\n###end listing###");
 }
