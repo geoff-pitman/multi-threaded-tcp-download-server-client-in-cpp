@@ -13,9 +13,11 @@
                 argv[1] == port            :  optional - defaults to 50118
                 Ex:  ./dl_server
                      ./dl_server 7000 
+					 
+  ---NOTE--- The starting directory for the client is the directory where
+             the server file resides.
  *****************************************************************************/
 
-#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
@@ -25,16 +27,16 @@
 #include <pthread.h>
 #include <dirent.h>
 #include <cstdio>
+#include <iostream>
+#include <sstream>
+#include <fstream>
 #include <cerrno>
+#include <fcntl.h>
+#include <string>
 #include <cstring>
 #include <clocale>
 #include <cstdlib>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
 
-#define MAXBUF 2049
 #define	QLEN 32
 #define SIZE sizeof(struct sockaddr_in)
 
@@ -47,29 +49,18 @@ void sig_handler(int signo);
 // automatically executes when thread is created
 // detailed documentation in the function
 // this is where the bulk work for the client is done
-int	slave_work(int ssock);	
+int	slave_work(int ssock);
 
 // list just the files in a directory
-// returns a formatted string of the list
+// returns a formatted string of the list	
 string listdir(DIR* dir);
 
-// master thread's sock descriptor
+// master thread's sock descriptor global var
 static int msock;
 
 int main(int argc, char *argv[])
 {
-	pthread_t th;
 	int port;
-	int qlen = QLEN;
-	int ssock;	
-	struct sockaddr_in server = {AF_INET, htons(port), INADDR_ANY};
-	static struct sigaction act;
-	
-	// register sig handler and mask pipe error sig
-	act.sa_handler = sig_handler;
-	sigfillset(&(act.sa_mask));
-	sigaction(SIGPIPE, &act, NULL);
-	
 	// check command line args
 	if(argc > 2)
     { 
@@ -83,6 +74,17 @@ int main(int argc, char *argv[])
 	}
 	else
 		port = 50118;
+	
+	pthread_t th;
+	int qlen = QLEN;
+	int ssock;	
+	struct sockaddr_in server = {AF_INET, htons(port), INADDR_ANY};
+	static struct sigaction act;
+  
+    // register sig handler and mask pipe error sig
+	act.sa_handler = sig_handler;
+	sigfillset(&(act.sa_mask));
+	sigaction(SIGPIPE, &act, NULL);
 	
 	// listen for signal
 	if (signal(SIGINT, sig_handler) == SIG_ERR)
@@ -108,9 +110,8 @@ int main(int argc, char *argv[])
       perror("Listen call failed");
       exit(-1);
     }   
-	
-	
 	cout << "Server started...listening for incoming connections" << endl;
+	
 	// handle concurrency
 	// accept incoming connection and create new thread to handle it
 	while (1) 
@@ -126,11 +127,9 @@ int main(int argc, char *argv[])
 			perror("Thread create call failed");
 	}
 	
-	
 	// the program should never fall through to the end of main...
 	//     but just in case
 	close(msock);
-	
 	return 0;
 }
 
@@ -176,15 +175,15 @@ int slave_work(int ssock)
 	// identifies connected client
 	cout << "Client thread created with ID: " << pthread_self() << endl;
 	
+	string path = ".";
+	string pt, temp, filename;
+	bool dlmode = false;
+	ifstream inf;
+	DIR *dir = opendir(".");
 	int start = 0;
 	int dlstart = 0;
-	bool dlmode = false;
-	string path = "/";
-	string pt, temp, filename;
-	ifstream inf;
-	DIR *dir = opendir("/");
-		
-	// handle initial contact with client	
+	
+	// handle initial contact with client		
 	if (start == 0)
 	{
 		char hello[] = "Server says 'HELLO'";
@@ -195,17 +194,16 @@ int slave_work(int ssock)
 	// main processing loop
 	while (1)
 	{
-		char buf[MAXBUF];
+		char buf[2000];
 		int b = 0;
-		bzero(buf, MAXBUF);
+		bzero(buf, 2000);
 		string temp = "";
 		
 		// dlmode starts false
 		// switch to dlmode when client confirms it is ready for download
 		while(dlmode)
 		{	
-			// make sure client is receiving download
-			b = read(ssock, buf, MAXBUF);
+			b = read(ssock, buf, 2000);
 			if(b < 0)
 			{
 				perror("Read call failed: ");
@@ -227,7 +225,6 @@ int slave_work(int ssock)
 					break;
 				}
 			}
-			
 			// read in file to be transferred line by line
 			// when it hits eof it closes file and switches out of dlmode
 			if(!getline(inf, temp))
@@ -256,7 +253,7 @@ int slave_work(int ssock)
 		}
 		
 		// main handler for incomming data
-		b = read(ssock, buf, MAXBUF);
+		b = read(ssock, buf, 2000);
 		if(b < 0)
 		{
 			perror("Read call failed: ");
@@ -287,18 +284,17 @@ int slave_work(int ssock)
 				temp = "";
 				temp = listdir(dir);
 				dir = opendir(path.c_str());
-				
-				// no files if length is less than 1
+			    
+				// no files if empty string
 				if (temp.length() < 1)
 					temp = "Directory contains no files";
 			}
-			// handle CD case
+			// handle cd case
 			else if(temp == "CD")
 			{
 				pt = path;
 				str >> temp;
-				
-				//build path string
+				// build path string
 				if (temp[0] == '/')
 					pt = temp;
 				else if(temp.length() == 1 && temp[0] == '.')
@@ -307,8 +303,8 @@ int slave_work(int ssock)
 					pt += "/" + temp;
 				else
 					pt += temp;
-			
-			     // attempt to open directory
+				
+				// attempt to open directory
 				 // record errors or success
 				if ( (dir = opendir(pt.c_str())) <= 0)
 				{
@@ -358,7 +354,6 @@ int slave_work(int ssock)
 			
 		}// end read handler
 
-		
 		// sends back the processed data requested from 
 		//          client message handler above
 		b = write(ssock, temp.c_str(), strlen(temp.c_str()));
