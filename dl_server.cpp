@@ -49,7 +49,7 @@ void sig_handler(int signo);
 // automatically executes when thread is created
 // detailed documentation in the function
 // this is where the bulk work for the client is done
-int	slave_work(int ssock);
+int slave_work(int ssock);
 
 // list just the files in a directory
 // returns a formatted string of the list	
