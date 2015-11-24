@@ -7,7 +7,7 @@
   Assignment: #9
   Filename: dl_client.cpp
   Purpose: Create a concurrent TCP file transfer server
-  Compile: gcc dl_client.cpp               :  on ACAD (csit)
+  Compile: g++ dl_client.cpp               :  on ACAD (csit)
            or use make file
   Command Line: argv[0] == executable file :  required
                 argv[1] == host            :  required
