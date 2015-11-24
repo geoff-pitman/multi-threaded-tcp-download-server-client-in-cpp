@@ -39,4 +39,5 @@ The download protocol specifications are:
   o Server sends file to client, line by line
   o Decision: How does the client know when the server has completed sending the file?
 
-The client should accept the server’s hostname and optionally, the port number as a command-line argument. The server should accept an optional port number as a command-line argument.
+The client should accept the server’s hostname and optionally, the port number as a command-line argument. 
+The server should accept an optional port number as a command-line argument.
