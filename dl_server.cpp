@@ -7,7 +7,7 @@
   Assignment: #9
   Filename: dl_server.cpp
   Purpose: Create a concurrent TCP file transfer server
-  Compile: gcc dl_server.cpp -lpthread     :  on ACAD (csit)
+  Compile: g++ dl_server.cpp -lpthread     :  on ACAD (csit)
            or use make file
   Command Line: argv[0] == executable file :  required
                 argv[1] == port            :  optional - defaults to 50118
