@@ -32,10 +32,10 @@ The download protocol specifications are:
   o Client will send “DOWNLOAD” command to server, followed by a filename
   o Server will respond with one of the following:
         “READY” if file exists
-        File Not Found” if file doesn’t exist
+        "File Not Found” if file doesn’t exist
   o Client will respond with one of the following:
       “READY” if file doesn’t exist or it exists and should be overwritten
-      STOP” if file exists and should not be overwritten
+      "STOP” if file exists and should not be overwritten
   o Server sends file to client, line by line
   o Decision: How does the client know when the server has completed sending the file?
 
