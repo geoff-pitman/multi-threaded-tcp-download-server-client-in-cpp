@@ -43,6 +43,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#define MAXBUF 2000
 #define SIZE sizeof(struct sockaddr_in) 
 
 using namespace std;
@@ -59,10 +60,10 @@ int main(int argc, char *argv[])
 	int port;
 	// check command line args
 	if(argc < 2 || argc > 3)
-    	{ 
-       		printf("\nUsage: %s <host> <[port]>\n", argv[0]);
-       		return -1;
-    	} // end if
+    { 
+       printf("\nUsage: %s <host> <[port]>\n", argv[0]);
+       return -1;
+    } // end if
 	else if (argv[2])
 	{
 		stringstream argin(argv[2]);
@@ -71,47 +72,47 @@ int main(int argc, char *argv[])
 	else
 		port = 50118;
 
-  	int b = 0;
-  	int dlstart = 0;
-  	int sockfd;
-  	char c[256];
-  	char buf[2000];
-  	char ip[128];
-  	bool dlmode = false;
-  	bool firstpass = false;
-  	string status = "";
-  	string getin = "";
-  	string file = "";
-  	string check = "";
-  	ifstream inf;
-  	ofstream outf;
+  int b = 0;
+  int dlstart = 0;
+  int sockfd;
+  char c[256];
+  char buf[MAXBUF];
+  char ip[128];
+  bool dlmode = false;
+  bool firstpass = false;
+  string status = "";
+  string getin = "";
+  string file = "";
+  string check = "";
+  ifstream inf;
+  ofstream outf;
 
-  	// initialize sockaddr struct
-  	struct sockaddr_in server = {AF_INET, htons(port)};
+  // initialize sockaddr struct
+  struct sockaddr_in server = {AF_INET, htons(port)};
   
-  	// reverse lookup hostname and set ip address 
-  	lookup_IP(argv[1], ip);  
+  // reverse lookup hostname and set ip address 
+  lookup_IP(argv[1], ip);  
   
-	// convert and store the server's IP address
-  	server.sin_addr.s_addr = inet_addr(ip);
+  // convert and store the server's IP address
+  server.sin_addr.s_addr = inet_addr(ip);
   
-  	// set up the transport end point
-  	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-    	{
-      		perror("socket call failed");
-      		exit(-1);
-    	} 
+  // set up the transport end point
+  if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+    {
+      perror("socket call failed");
+      exit(-1);
+    } 
 
-  	// connect the socket to the server's address
-  	if (connect(sockfd, (struct sockaddr *)&server, SIZE) == -1)
-    	{
-      		perror("connect call failed");
-      		exit(-1);
-    	}
+  // connect the socket to the server's address
+  if (connect(sockfd, (struct sockaddr *)&server, SIZE) == -1)
+    {
+      perror("connect call failed");
+      exit(-1);
+    }
 
-	if((b = read(sockfd, buf, 2000)) < 0)
+	if((b = recv(sockfd, buf, MAXBUF, 0)) < 0)
 	{
-		perror("read call failed: ");
+		perror("recv call failed: ");
 		exit(-1);
 	}
 	buf[b] = 0;
@@ -119,9 +120,9 @@ int main(int argc, char *argv[])
 		cout << "[SERVER MESSAGE] " << buf << endl;
  
   // send and receive information with the server
-  	while(1)
-  	{
-		bzero(buf, 2000);
+  while(1)
+  {
+		bzero(buf, MAXBUF);
 		b = 0;
 		
 		// dlmode starts false
@@ -130,10 +131,10 @@ int main(int argc, char *argv[])
 		{
 			// let server know that it is receiving transfer
 			getin = "READY";	
-			b = write(sockfd, getin.c_str(), strlen(getin.c_str()));
+			b = send(sockfd, getin.c_str(), strlen(getin.c_str()), 0);
 			if(b < 0)
 			{
-				perror("Write call failed: ");
+				perror("send call failed: ");
 				exit(-1);
 			}	
 			else if(b == 0)
@@ -143,14 +144,15 @@ int main(int argc, char *argv[])
 			}
 			
 			// receive file line by line
-			b = read(sockfd, buf, 2000);
+			b = recv(sockfd, buf, MAXBUF, 0);
 			if(b < 0)
 			{
-				perror("Read call failed: ");
+				perror("recv call failed: ");
 				exit(-1);
 			}
 			else if(b == 0)
 			{
+			
 				cout << "Server disconnected unexpectedly..." << endl;
 				break;	
 			}
@@ -205,11 +207,13 @@ int main(int argc, char *argv[])
 		if (getin == "BYE")
 			break;
 		
+		
+		
 		// send data to server
-		b = write(sockfd, getin.c_str(), strlen(getin.c_str()));
+		b = send(sockfd, getin.c_str(), strlen(getin.c_str()), 0);
 		if(b < 0)
 		{
-			perror("Write call failed: ");
+			perror("send call failed: ");
 			exit(-1);
 		}
 		else if(b == 0)
@@ -219,10 +223,10 @@ int main(int argc, char *argv[])
 		}
 		
 		// receive data from server
-		b = read(sockfd, buf, 2000);
+		b = recv(sockfd, buf, MAXBUF, 0);
 		if(b < 0)
 		{
-			perror("Read call failed: ");
+			perror("recv call failed: ");
 			exit(-1);
 		}
 		else if(b == 0)
@@ -301,3 +305,5 @@ void lookup_IP(char* hostname, char* ip)
     addr_list = (struct in_addr**) he->h_addr_list;
     strcpy(ip, inet_ntoa(*addr_list[0]));
 }
+
+
