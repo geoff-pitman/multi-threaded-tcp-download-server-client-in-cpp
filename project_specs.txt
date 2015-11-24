@@ -1,0 +1,34 @@
+Dr. L. Frye CSC328: Network Programming Fall 2015
+Server Program – Download Server
+In this assignment you will develop a network application. The server will be a concurrent, connection-oriented download server. The client will be a download client to test the server.
+The supported messages of this download protocol are:
+• HELLO – sent by server upon client connection
+• BYE – sent by client on disconnect
+• DIR – directory listing on the server
+• CD – change directory on the server
+• DOWNLOAD – client downloads requested file
+The download protocol specifications are:
+• When client connects, the server will send a “HELLO” message.
+• When client disconnects from server, client sends a “BYE” message to the server.
+• Directory listing
+o Client will send “DIR” command to server
+o Server will respond with the filenames of each file in the current directory
+o Decision: How will the server indicate the end of the directory listing?
+• Change directory on server
+o Client will send “CD” command, followed by a directory (absolute or relative)
+o Server will change to that directory
+o Server must handle errors, such as “permission denied”
+o Server will send response to client
+o Decision: What will server response be for successful and unsuccessful cd commands?
+• Download a file (send from server to client)
+o Client will send “DOWNLOAD” command to server, followed by a filename
+o Server will respond with one of the following:
+ “READY” if file exists
+ “File Not Found” if file doesn’t exist
+o Client will respond with one of the following:
+ “READY” if file doesn’t exist or it exists and should be overwritten
+ “STOP” if file exists and should not be overwritten
+o Server sends file to client, line by line
+o Decision: How does the client know when the server has completed sending the file?
+The client should accept the server’s hostname and optionally, the port number as a command-line argument. The server should accept an optional port number as a command-line argument.
+The readme file will include the answers to the Decisions presented, along with the traditional contents of a readme file.
