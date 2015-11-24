@@ -21,10 +21,7 @@
 			 the user in the validation loop.  Once it sees valid input
 			 it will stop hanging the disconnect is immediately detected. 
  *****************************************************************************/
- 
-#include <fcntl.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+
 #include <netinet/in.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
@@ -33,20 +30,23 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <dirent.h>
-#include <cerrno>
-#include <clocale>
-#include <cstring>
-#include <cstdlib>
 #include <cstdio>
-#include <fstream>
 #include <iostream>
 #include <sstream>
+#include <fstream>
+#include <cerrno>
+#include <fcntl.h>
 #include <string>
+#include <cstring>
+#include <clocale>
+#include <cstdlib>
+#include <arpa/inet.h>
+#include <netdb.h>
 
-#define MAXBUF 2049
 #define SIZE sizeof(struct sockaddr_in) 
 
 using namespace std;
+
 
 // lookup_IP does a reverse lookup on hostname and sets ip to point at the 
 //     ip address string - however - if an ip is passed, it will come out
@@ -57,22 +57,6 @@ void lookup_IP(char* hostname, char* ip);
 int main(int argc, char *argv[])
 {
 	int port;
-	int sockfd;
-	char buf[MAXBUF];
-	char ip[128];
-	bool dlmode = false;
-	int b = 0;
-	int dlstart = 0;
-	int rval = 0;
-	char in;
-	
-	ifstream inf;
-	ofstream outf;
-	string file = "";
-	string status = "";
-	string getin = "";
-	string check = "";
-	
 	// check command line args
 	if(argc < 2 || argc > 3)
     { 
@@ -87,29 +71,44 @@ int main(int argc, char *argv[])
 	else
 		port = 50118;
 
-	// initialize sockaddr struct
-	struct sockaddr_in server = {AF_INET, htons(port)};
-    
-	// reverse lookup hostname and set ip address 
-    lookup_IP(argv[1], ip);  
-	
-	// convert and store the server's IP address
-	server.sin_addr.s_addr = inet_addr(ip);
+  int b = 0;
+  int dlstart = 0;
+  int sockfd;
+  char c[256];
+  char buf[2000];
+  char ip[128];
+  bool dlmode = false;
+  bool firstpass = false;
+  string status = "";
+  string getin = "";
+  string file = "";
+  string check = "";
+  ifstream inf;
+  ofstream outf;
+
+  // initialize sockaddr struct
+  struct sockaddr_in server = {AF_INET, htons(port)};
   
-	// set up the transport end point
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+  // reverse lookup hostname and set ip address 
+  lookup_IP(argv[1], ip);  
+  
+  // convert and store the server's IP address
+  server.sin_addr.s_addr = inet_addr(ip);
+  
+  // set up the transport end point
+  if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
       perror("socket call failed");
       exit(-1);
-    }   // end if
+    } 
 
   // connect the socket to the server's address
   if (connect(sockfd, (struct sockaddr *)&server, SIZE) == -1)
     {
       perror("connect call failed");
       exit(-1);
-    }   // end if
-	
+    }
+
 	if((b = read(sockfd, buf, 2000)) < 0)
 	{
 		perror("read call failed: ");
@@ -122,7 +121,7 @@ int main(int argc, char *argv[])
   // send and receive information with the server
   while(1)
   {
-		bzero(buf, MAXBUF);
+		bzero(buf, 2000);
 		b = 0;
 		
 		// dlmode starts false
@@ -152,10 +151,11 @@ int main(int argc, char *argv[])
 			}
 			else if(b == 0)
 			{
+			
 				cout << "Server disconnected unexpectedly..." << endl;
 				break;	
 			}
-			// process file
+			// process file flags
 			else
 			{
 				buf[b] = 0;
@@ -174,13 +174,13 @@ int main(int argc, char *argv[])
 					outf.close();
 					cout << "Transfer complete!" << endl;
 				}
-				//write to file
+			    //write to file
 				else
 					outf << buf << endl;	
 			}
 		}
 		
-		// input validation loop
+		// user input validation loop
 		while (1)
 		{
 			// command prompt for user
@@ -206,6 +206,8 @@ int main(int argc, char *argv[])
 		if (getin == "BYE")
 			break;
 		
+		
+		
 		// send data to server
 		b = write(sockfd, getin.c_str(), strlen(getin.c_str()));
 		if(b < 0)
@@ -219,7 +221,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 		
-		// read data from server
+		// receive data from server
 		b = read(sockfd, buf, 2000);
 		if(b < 0)
 		{
@@ -241,13 +243,13 @@ int main(int argc, char *argv[])
 			{
 				// check if there is already a file with same name as 
 				//     potential download
-				rval = access(file.c_str(), F_OK);
+				int rval = access(file.c_str(), F_OK);
 				// if file exists, ask if user wants to overwrite.
 				if(rval == 0)
 				{
 					cout << "Do you really want to overwrite <" << file
 					     << ">?(y/n)";
-					in;
+					char in;
 					cin >> in;
 					// if they want to over write, set dlmode flag true
 					// open file and prepare for download
@@ -278,11 +280,9 @@ int main(int argc, char *argv[])
 				cout << "[SERVER MESSAGE] " << buf << endl;
 		}
    }
-   
-	// clean up and shut down
+
 	close(sockfd);
 	cout << "Client shutting down...Goodbye!" << endl;
-	
 	return 0;
 }
 
@@ -304,4 +304,5 @@ void lookup_IP(char* hostname, char* ip)
     addr_list = (struct in_addr**) he->h_addr_list;
     strcpy(ip, inet_ntoa(*addr_list[0]));
 }
+
 
