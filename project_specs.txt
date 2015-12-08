@@ -1,4 +1,6 @@
-Dr. L. Frye CSC328: Network Programming Fall 2015
+CSC328: Network Programming 
+Dr. L. Frye
+Fall 2015
 Client/Server Program – Download Server
 
 In this assignment you will develop a network application. The server will be a concurrent, connection-oriented download server. The client will be a download client to test the server.
